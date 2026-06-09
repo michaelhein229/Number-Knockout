@@ -6,6 +6,10 @@ const PICKUP_RADIUS = 46;
 const INPUT_MODE = "pickup"; // "pickup" keeps gameplay on-court; "buttons" restores the old bottom answer buttons.
 const PICKUP_BALL_COUNT = 5;
 const PLAYER_SPEED = 335;
+const PLAYER_DISPLAY_WIDTH = 118;
+const PLAYER_DISPLAY_HEIGHT = 134;
+const PLAYER_THROW_DISPLAY_WIDTH = 178;
+const PLAYER_THROW_DISPLAY_HEIGHT = 145;
 const DASH_SPEED = 840;
 const DASH_DURATION = 190;
 const DASH_COOLDOWN = 5000;
@@ -23,8 +27,8 @@ const ASSET = {
   court: "assets/backgrounds/gym_court_background.png",
   title: "assets/ui/number_knockout_title.png",
   robot: "assets/sprites/robot_gym_mascot.png",
-  playerMove: "assets/sheets/player_move.png",
-  playerThrow: "assets/sheets/player_throw.png",
+  playerMove: "assets/sheets/player_move_no_outline.png",
+  playerThrow: "assets/sheets/player_throw_no_ball.png",
   music: "assets/audio/music_arcade_gym_loop.mp3",
   bounce: "assets/audio/sfx_ball_bounce.mp3",
   contact: "assets/audio/sfx_ball_contact.mp3",
@@ -229,8 +233,11 @@ class PlayScene extends Phaser.Scene {
     this.add.rectangle(WIDTH / 2, HEIGHT, WIDTH, 120, 0x10151c, INPUT_MODE === "pickup" ? 0.34 : 0.82).setOrigin(0.5, 1);
     this.add.rectangle(WIDTH - 152, 170, 250, 150, 0x10151c, 0.72).setStrokeStyle(3, 0xffd84d);
 
+    this.createPlayerAnimations();
     this.robot = this.add.image(WIDTH / 2, 160, "robot").setDisplaySize(142, 142);
-    this.player = this.add.sprite(WIDTH / 2, 455, "playerMove", 0).setDisplaySize(118, 134);
+    this.player = this.add
+      .sprite(WIDTH / 2, 455, "playerMove", 0)
+      .setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
 
     this.problemText = centeredText(this, WIDTH / 2, 42, "", 40, "#fff8ea");
     this.instructionBox = this.add
@@ -318,6 +325,16 @@ class PlayScene extends Phaser.Scene {
     if (this.distanceBetween(this.playerProjectile.ball, this.activeRobotBall.ball) < HIT_RADIUS) {
       this.resolveThrow(this.playerProjectile.ball, this.playerProjectile.label, true);
     }
+  }
+
+  createPlayerAnimations() {
+    if (this.anims.exists("player-throw")) return;
+    this.anims.create({
+      key: "player-throw",
+      frames: this.anims.generateFrameNumbers("playerThrow", { start: 0, end: 9 }),
+      frameRate: 36,
+      repeat: 0,
+    });
   }
 
   updatePlayerMovement(delta) {
@@ -669,13 +686,18 @@ class PlayScene extends Phaser.Scene {
     this.canThrow = false;
     this.aimLine.setVisible(false);
     this.sound.play("whoosh", { volume: 0.55 });
+    const launchX = this.heldBall?.circle.x ?? this.player.x + 38;
+    const launchY = this.heldBall?.circle.y ?? this.player.y - 42;
     this.clearHeldBall();
-    this.player.setTexture("playerThrow", 0).setDisplaySize(128, 118);
-    this.time.delayedCall(220, () => {
-      if (this.player?.active) this.player.setTexture("playerMove", 0).setDisplaySize(118, 134);
+    this.player.setTexture("playerThrow", 0).setDisplaySize(PLAYER_THROW_DISPLAY_WIDTH, PLAYER_THROW_DISPLAY_HEIGHT);
+    this.player.play("player-throw", true);
+    this.player.once(Phaser.Animations.Events.ANIMATION_COMPLETE, () => {
+      if (this.player?.active) {
+        this.player.setTexture("playerMove", 0).setDisplaySize(PLAYER_DISPLAY_WIDTH, PLAYER_DISPLAY_HEIGHT);
+      }
     });
 
-    const playerBall = this.add.circle(this.player.x, this.player.y - 70, 20, 0xdb1f1f).setStrokeStyle(4, 0x270909);
+    const playerBall = this.add.circle(launchX, launchY, 20, 0xdb1f1f).setStrokeStyle(4, 0x270909);
     const label = centeredText(this, playerBall.x, playerBall.y, String(this.selected), 16, "#fff8ea", {
       strokeThickness: 2,
     });
